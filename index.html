@@ -683,6 +683,54 @@
     transform: scale(1.1);
   }
 
+  /* ── VOICE & LANGUAGE ── */
+  .lang-select {
+    margin-left: auto;
+    background: rgba(253,246,227,0.05);
+    border: 1px solid rgba(253,246,227,0.15);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 100px;
+    outline: none;
+    cursor: pointer;
+    max-width: 150px;
+  }
+
+  .lang-select option { background: var(--bark); color: var(--cream); }
+  .lang-select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .mic-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(245,200,66,0.12);
+    border: 1px solid rgba(245,200,66,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .mic-btn:hover {
+    background: rgba(245,200,66,0.25);
+    transform: scale(1.05);
+  }
+
+  .mic-btn.recording {
+    background: var(--danger);
+    border-color: var(--danger);
+    animation: micPulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,74,0.5); }
+    50% { box-shadow: 0 0 0 14px rgba(255,107,74,0); }
+  }
+
   .quick-prompts {
     display: flex;
     gap: 0.5rem;
@@ -1020,6 +1068,18 @@
         <strong>Krishi — Farming AI</strong>
         <span><span class="online-dot"></span> Online & Ready</span>
       </div>
+      <select class="lang-select" id="lang-select" onchange="setLanguage(this.value)" title="Chat & voice language">
+        <option value="hi-IN">हिन्दी (Hindi)</option>
+        <option value="bn-IN">বাংলা (Bangla)</option>
+        <option value="ta-IN">தமிழ் (Tamil)</option>
+        <option value="te-IN">తెలుగు (Telugu)</option>
+        <option value="mr-IN">मराठी (Marathi)</option>
+        <option value="gu-IN">ગુજરાતી (Gujarati)</option>
+        <option value="pa-IN">ਪੰਜਾਬੀ (Punjabi)</option>
+        <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+        <option value="ml-IN">മലയാളം (Malayalam)</option>
+        <option value="en-IN">English</option>
+      </select>
     </div>
 
     <div class="chat-messages" id="chat-messages">
@@ -1043,6 +1103,7 @@
         placeholder="Ask about your crop, disease, weather, pests…"
         onkeydown="if(event.key==='Enter') sendMessage()"
       >
+      <button class="mic-btn" id="mic-btn" type="button" title="Speak in your language">🎤</button>
       <button class="send-btn" onclick="sendMessage()">➤</button>
     </div>
   </div>
@@ -1103,7 +1164,8 @@ async function analyzeDisease() {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      image: base64
+      image: base64,
+      language: selectedLang
     })
   });
 
@@ -1183,6 +1245,95 @@ function updateWeatherFallback() {
 // ── CHATBOT USING BACKEND ──
 const chatHistory = [];
 
+// ── VOICE INPUT & LANGUAGE (Web Speech API — free, no API key) ──
+const VOICE_LANGS = {
+  'en-IN': 'English',
+  'hi-IN': 'हिन्दी',
+  'bn-IN': 'বাংলা',
+  'ta-IN': 'தமிழ்',
+  'te-IN': 'తెలుగు',
+  'mr-IN': 'मराठी',
+  'gu-IN': 'ગુજરાતી',
+  'pa-IN': 'ਪੰਜਾਬੀ',
+  'kn-IN': 'ಕನ್ನಡ',
+  'ml-IN': 'മലയാളം'
+};
+
+let selectedLang = localStorage.getItem('krishi-lang') || 'hi-IN';
+let recognition = null;
+let isRecording = false;
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function setLanguage(code) {
+  if (!VOICE_LANGS[code]) return;
+  selectedLang = code;
+  localStorage.setItem('krishi-lang', code);
+  if (recognition) recognition.lang = code;
+}
+
+function initVoice() {
+  const micBtn = document.getElementById('mic-btn');
+  const langSel = document.getElementById('lang-select');
+  if (!micBtn) return;
+
+  if (langSel) langSel.value = selectedLang;
+
+  if (!SpeechRecognitionAPI) {
+    micBtn.style.display = 'none';
+    if (langSel) langSel.disabled = true;
+    return;
+  }
+
+  recognition = new SpeechRecognitionAPI();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.lang = selectedLang;
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    const input = document.getElementById('chat-input');
+    input.value = transcript;
+    sendMessage();
+  };
+
+  recognition.onend = () => setRecording(false);
+  recognition.onerror = (err) => {
+    console.error('Voice error:', err.error);
+    setRecording(false);
+  };
+
+  micBtn.onclick = toggleVoice;
+}
+
+function toggleVoice() {
+  if (!recognition) return;
+  if (isRecording) { recognition.stop(); return; }
+  try {
+    recognition.lang = selectedLang;
+    recognition.start();
+    setRecording(true);
+  } catch (err) {
+    console.error(err);
+    setRecording(false);
+  }
+}
+
+function setRecording(on) {
+  isRecording = on;
+  const micBtn = document.getElementById('mic-btn');
+  const input = document.getElementById('chat-input');
+  if (!micBtn) return;
+  micBtn.classList.toggle('recording', on);
+  micBtn.textContent = on ? '⏹' : '🎤';
+  micBtn.title = on ? 'Listening… tap to stop' : 'Speak in your language';
+  if (input) {
+    input.placeholder = on
+      ? 'Listening… speak now 🎙️'
+      : 'Ask about your crop, disease, weather, pests…';
+  }
+}
+
 async function sendMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
@@ -1242,6 +1393,7 @@ async function getBotReply(text) {
 }
 // ── INIT ──
 loadWeather();
+initVoice();
 </script>
 
 </body>

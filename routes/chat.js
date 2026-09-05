@@ -40,7 +40,14 @@ Guidelines:
 - Use simple language; avoid unnecessary jargon
 - When relevant, mention both organic and chemical options
 - If asked about local crops, assume Indian farming context (Kharif/Rabi seasons, monsoon climate)
-- Always end with an encouraging note when the farmer seems worried`;
+- Always end with an encouraging note when the farmer seems worried
+
+LANGUAGE RULE (very important):
+- Always reply in the EXACT same language the farmer writes in — Hindi → reply in हिन्दी, Bangla → বাংলা, Tamil → தமிழ், Telugu → తెలుగు, Marathi → मराठी, Gujarati → ગુજરાતી, Punjabi → ਪੰਜਾਬੀ, Kannada → ಕನ್ನಡ, Malayalam → മലയാളം, English → English.
+- Match their script too (e.g. Devanagari for Hindi, Bengali script for Bangla).
+- Voice messages arrive as transcribed text in the farmer's own language — treat it the same and reply in that language.
+- If the farmer mixes languages, reply in the dominant one.
+- Keep crop names, pesticide/fertilizer names, and scientific terms in English where that is more useful, but write the surrounding explanation in the farmer's language.`;
 
 router.post('/', async (req, res) => {
   try {

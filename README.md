@@ -35,6 +35,7 @@ Built for **Hack-O-NiT · AI Summit 2026** at Narula Institute of Technology.
 | 💊 **Treatment Suggestions** | Actionable step-by-step plans: immediate action, chemical/organic options, and prevention |
 | 🌦️ **Weather Intelligence** | Live weather via Open-Meteo + rule-based farming advice tailored to current conditions |
 | 🤖 **Farming Chatbot** | Context-aware chat with session memory, tuned for Indian farming (Kharif/Rabi seasons, monsoon climate, PM-KISAN schemes) |
+| 🎤 **Voice + Multilingual** | Tap the mic and speak in Hindi, Bangla, Tamil, and 9 more languages — Krishi replies in the same language; crop reports localize too |
 | 📱 **Mobile-Friendly UI** | Responsive dark-themed interface with smooth animations and quick-prompt chips |
 
 ---

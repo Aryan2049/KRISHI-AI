@@ -13,6 +13,18 @@ function getGroq() {
   return groq;
 }
 
+// Map a BCP-47 code (e.g. 'hi-IN') to a spoken language name
+const LANG_MAP = {
+  en: 'English', hi: 'Hindi', bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
+  mr: 'Marathi', gu: 'Gujarati', pa: 'Punjabi', kn: 'Kannada',
+  ml: 'Malayalam', or: 'Odia', ur: 'Urdu'
+};
+function farmerLangName(code) {
+  if (!code) return null;
+  const base = String(code).split('-')[0].toLowerCase();
+  return LANG_MAP[base] || null;
+}
+
 router.post('/analyze', async (req, res) => {
   try {
     const { image } = req.body;
@@ -25,19 +37,15 @@ router.post('/analyze', async (req, res) => {
       return res.status(500).json({ error: 'GROQ_API_KEY is not set. Add it to your .env file or environment settings.' });
     }
 
-    const response = await getGroq().chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type:      'image_url',
-              image_url: { url: `data:image/jpeg;base64,${image}` }
-            },
-            {
-              type: 'text',
-              text: `You are a senior agricultural scientist with 20+ years of experience in crop disease diagnosis.
+    const langName = farmerLangName(req.body.language);
+    const content = [
+      {
+        type:      'image_url',
+        image_url: { url: `data:image/jpeg;base64,${image}` }
+      },
+      {
+        type: 'text',
+        text: `You are a senior agricultural scientist with 20+ years of experience in crop disease diagnosis.
 
 Carefully analyze this crop image and identify any plant diseases, pest damage, or nutrient deficiencies.
 
@@ -49,8 +57,23 @@ Respond ONLY in valid JSON — no markdown fences, no extra text, just raw JSON:
   "description": "2-3 sentences describing what you observe in the image — symptoms, affected areas, progression",
   "treatment": "Step-by-step treatment recommendations. Include: 1) Immediate action, 2) Chemical/organic treatment options, 3) Preventive measures for future"
 }`
-            }
-          ]
+      }
+    ];
+
+    // If the farmer speaks a regional language, localize the report text
+    if (langName && langName !== 'English') {
+      content.push({
+        type: 'text',
+        text: `The farmer speaks ${langName}. Write the "description" and "treatment" fields entirely in ${langName} (in its own script, e.g. Devanagari for Hindi, Bengali script for Bangla, Tamil script for Tamil). Keep the JSON keys, "disease" (English name), "severity", and "confidence" fields in English — only localize the description and treatment values.`
+      });
+    }
+
+    const response = await getGroq().chat.completions.create({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [
+        {
+          role: 'user',
+          content
         }
       ],
       max_tokens: 1024,
