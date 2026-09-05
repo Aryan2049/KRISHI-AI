@@ -3,8 +3,11 @@
 //  Main entry point. Starts the Express server.
 // ──────────────────────────────────────────────
 
-// Load environment variables from .env file
+// Load environment variables — from .env, and from .env.local (used by
+// hosted/cloud environments). Values already in the process environment
+// always win; missing files are ignored.
 require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 
 const express = require('express');
 const cors    = require('cors');

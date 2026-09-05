@@ -9,9 +9,11 @@ const Groq    = require('groq-sdk');
 
 let groq;
 function getGroq() {
-  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 60000 });
   return groq;
 }
+
+const DEFAULT_MODEL = 'qwen/qwen3.6-27b';
 
 // Map a BCP-47 code (e.g. 'hi-IN') to a spoken language name
 const LANG_MAP = {
@@ -27,7 +29,9 @@ function farmerLangName(code) {
 
 router.post('/analyze', async (req, res) => {
   try {
-    const { image } = req.body;
+    const { image, language, model } = req.body;
+    const chosenModel = model || DEFAULT_MODEL;
+    const langName = farmerLangName(language);
 
     if (!image) {
       return res.status(400).json({ error: 'No image provided. Send { image: base64string }' });
@@ -36,8 +40,6 @@ router.post('/analyze', async (req, res) => {
     if (!process.env.GROQ_API_KEY) {
       return res.status(500).json({ error: 'GROQ_API_KEY is not set. Add it to your .env file or environment settings.' });
     }
-
-    const langName = farmerLangName(req.body.language);
     const content = [
       {
         type:      'image_url',
@@ -54,8 +56,8 @@ Respond ONLY in valid JSON — no markdown fences, no extra text, just raw JSON:
   "disease": "Exact disease name, or 'Healthy Plant' if no disease found",
   "severity": "High or Medium or Low or None",
   "confidence": "XX% (your confidence level in the diagnosis)",
-  "description": "2-3 sentences describing what you observe in the image — symptoms, affected areas, progression",
-  "treatment": "Step-by-step treatment recommendations. Include: 1) Immediate action, 2) Chemical/organic treatment options, 3) Preventive measures for future"
+  "description": "1-2 short sentences on what you observe — symptoms and affected areas",
+  "treatment": "Concise treatment: 1) Immediate action, 2) Best chemical/organic option, 3) Prevention. Keep it under 60 words"
 }`
       }
     ];
@@ -68,20 +70,38 @@ Respond ONLY in valid JSON — no markdown fences, no extra text, just raw JSON:
       });
     }
 
-    const response = await getGroq().chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [
-        {
-          role: 'user',
-          content
-        }
-      ],
-      max_tokens: 1024,
-      temperature: 0.3
-    });
+    let response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await getGroq().chat.completions.create({
+          model: chosenModel,
+          messages: [
+            {
+              role: 'user',
+              content
+            }
+          ],
+          max_tokens: 600,
+          temperature: 0.3,
+          reasoning_effort: 'none'
+        });
+        break;
+      } catch (err) {
+        const overCapacity = /over capacity|rate_limit_exceeded|503/i.test(err.message || '');
+        if (!overCapacity || attempt === 2) throw err;
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      }
+    }
 
-    const rawText = response.choices[0].message.content.trim();
-    const clean   = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    let rawText = response.choices[0].message.content.trim();
+
+    // Some models wrap output in <think>…</think> reasoning blocks — drop them
+    rawText = rawText.replace(/^<think>[\s\S]*?<\/think>\s*/i, '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+
+    // Fall back to extracting the outermost JSON object
+    const start = rawText.indexOf('{');
+    const end   = rawText.lastIndexOf('}');
+    const clean = (start !== -1 && end > start) ? rawText.slice(start, end + 1) : rawText;
 
     let parsed;
     try {
