@@ -7,7 +7,11 @@ const express = require('express');
 const router  = express.Router();
 const Groq    = require('groq-sdk');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let groq;
+function getGroq() {
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return groq;
+}
 
 router.post('/analyze', async (req, res) => {
   try {
@@ -17,7 +21,11 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'No image provided. Send { image: base64string }' });
     }
 
-    const response = await groq.chat.completions.create({
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: 'GROQ_API_KEY is not set. Add it to your .env file or environment settings.' });
+    }
+
+    const response = await getGroq().chat.completions.create({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [
         {

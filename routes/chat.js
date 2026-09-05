@@ -7,7 +7,11 @@ const express = require('express');
 const router  = express.Router();
 const Groq    = require('groq-sdk');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let groq;
+function getGroq() {
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return groq;
+}
 
 // In-memory session store
 const sessions = {};
@@ -46,6 +50,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: 'GROQ_API_KEY is not set. Add it to your .env file or environment settings.' });
+    }
+
     const sid = sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     if (!sessions[sid]) {
@@ -58,7 +66,7 @@ router.post('/', async (req, res) => {
 
     const recentHistory = history.slice(-20);
 
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model:    'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },

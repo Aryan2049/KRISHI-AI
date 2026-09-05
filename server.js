@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors    = require('cors');
+const path    = require('path');
 
 // Import all our route files
 const analyzeRoute = require('./routes/analyze');
@@ -40,8 +41,10 @@ app.use('/', weatherRoute);
 app.use('/chat', chatRoute);
 
 
-app.get("/", (req, res) => {
-  res.send("KrishiAI Backend is LIVE 🚀");
+// ── FRONTEND ───────────────────────────────────
+// Serve the actual KrishiAI site (index.html) at the root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ── START SERVER ────────────────────────────────

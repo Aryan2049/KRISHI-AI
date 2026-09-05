@@ -1057,8 +1057,9 @@
 <!-- ── SCRIPTS ── -->
 <script>
 
-// 🔗 CHANGE THIS TO YOUR ACTUAL BACKEND URL
-  const BACKEND_URL = "http://localhost:3000";
+// 🔗 Backend URL — same origin when served by the Express server,
+//    localhost:3000 when opened directly as a file.
+  const BACKEND_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 
 // ── IMAGE UPLOAD ──
 function handleImageUpload(e) {
