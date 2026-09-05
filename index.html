@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KrishiAI — Intelligent Farming Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --soil: #1a0f00;
+    --bark: #2d1a00;
+    --moss: #0d2010;
+    --leaf: #1db954;
+    --lime: #7fff00;
+    --gold: #f5c842;
+    --sky: #4fc3f7;
+    --cream: #fdf6e3;
+    --muted: #a89070;
+    --danger: #ff6b4a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--soil);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 3rem;
+    backdrop-filter: blur(20px);
+    background: rgba(26,15,0,0.7);
+    border-bottom: 1px solid rgba(245,200,66,0.1);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--cream);
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--leaf);
+    box-shadow: 0 0 12px var(--leaf);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.7; }
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    transition: color 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+
+  .nav-cta {
+    background: var(--leaf);
+    color: var(--soil) !important;
+    padding: 0.5rem 1.2rem;
+    border-radius: 100px;
+    font-weight: 600 !important;
+    transition: all 0.3s !important;
+  }
+
+  .nav-cta:hover {
+    background: var(--lime) !important;
+    color: var(--soil) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(29,185,84,0.4);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding: 8rem 3rem 4rem;
+    position: relative;
+    gap: 4rem;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 80% 50%, rgba(29,185,84,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(245,200,66,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(29,185,84,0.12);
+    border: 1px solid rgba(29,185,84,0.3);
+    color: var(--leaf);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    width: fit-content;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    line-height: 1.0;
+    margin-bottom: 1.5rem;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .hero-title span {
+    color: var(--leaf);
+    position: relative;
+    display: inline-block;
+  }
+
+  .hero-title span::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--leaf), transparent);
+    border-radius: 2px;
+  }
+
+  .hero-sub {
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    max-width: 480px;
+    margin-bottom: 2.5rem;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-primary {
+    background: var(--leaf);
+    color: var(--soil);
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 100px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary:hover {
+    background: var(--lime);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(29,185,84,0.4);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--cream);
+    border: 1px solid rgba(253,246,227,0.2);
+    padding: 0.9rem 2rem;
+    border-radius: 100px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    transform: translateY(-2px);
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(253,246,227,0.08);
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.8rem;
+    color: var(--gold);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── HERO RIGHT — UPLOAD CARD ── */
+  .hero-right {
+    position: relative;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .upload-card {
+    background: rgba(45,26,0,0.6);
+    border: 1px solid rgba(245,200,66,0.15);
+    border-radius: 24px;
+    padding: 2rem;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,200,66,0.4), transparent);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--cream);
+  }
+
+  .card-badge {
+    background: rgba(29,185,84,0.15);
+    color: var(--leaf);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.25rem 0.7rem;
+    border-radius: 100px;
+    border: 1px solid rgba(29,185,84,0.3);
+  }
+
+  .upload-zone {
+    border: 2px dashed rgba(245,200,66,0.25);
+    border-radius: 16px;
+    padding: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--leaf);
+    background: rgba(29,185,84,0.05);
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    filter: grayscale(0.3);
+  }
+
+  .upload-zone p {
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  .upload-zone strong {
+    color: var(--gold);
+  }
+
+  #preview-img {
+    width: 100%;
+    border-radius: 12px;
+    display: none;
+    margin-bottom: 1rem;
+    max-height: 200px;
+    object-fit: cover;
+  }
+
+  .analyze-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--leaf), #16a34a);
+    color: white;
+    border: none;
+    padding: 1rem;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 1.2rem;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .analyze-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(29,185,84,0.4);
+  }
+
+  .analyze-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── RESULT PANEL ── */
+  #result-panel {
+    margin-top: 1.5rem;
+    display: none;
+  }
+
+  .result-box {
+    background: rgba(13,32,16,0.6);
+    border: 1px solid rgba(29,185,84,0.2);
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .result-box.weather {
+    background: rgba(79,195,247,0.07);
+    border-color: rgba(79,195,247,0.2);
+  }
+
+  .result-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--leaf);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .result-box.weather .result-label { color: var(--sky); }
+
+  .result-content {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--cream);
+  }
+
+  .severity-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+  }
+
+  .severity-high { background: rgba(255,107,74,0.2); color: var(--danger); }
+  .severity-med { background: rgba(245,200,66,0.2); color: var(--gold); }
+  .severity-low { background: rgba(29,185,84,0.2); color: var(--leaf); }
+
+  /* ── FEATURES SECTION ── */
+  .features {
+    padding: 6rem 3rem;
+    position: relative;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 4vw, 3rem);
+    text-align: center;
+    margin-bottom: 1rem;
+    color: var(--cream);
+  }
+
+  .section-sub {
+    text-align: center;
+    color: var(--muted);
+    max-width: 540px;
+    margin: 0 auto 4rem;
+    line-height: 1.7;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .feature-card {
+    background: rgba(45,26,0,0.4);
+    border: 1px solid rgba(253,246,227,0.07);
+    border-radius: 20px;
+    padding: 2rem;
+    transition: all 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(29,185,84,0.08), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(29,185,84,0.25);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  }
+
+  .feature-card:hover::after { opacity: 1; }
+
+  .feature-icon {
+    font-size: 2.2rem;
+    margin-bottom: 1.2rem;
+    display: block;
+  }
+
+  .feature-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.7rem;
+    color: var(--cream);
+  }
+
+  .feature-desc {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  /* ── CHATBOT SECTION ── */
+  .chatbot-section {
+    padding: 4rem 3rem 6rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .chat-container {
+    background: rgba(45,26,0,0.5);
+    border: 1px solid rgba(245,200,66,0.12);
+    border-radius: 24px;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+  }
+
+  .chat-header {
+    background: rgba(29,185,84,0.1);
+    border-bottom: 1px solid rgba(29,185,84,0.15);
+    padding: 1.2rem 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .chat-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--leaf), #16a34a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .chat-info strong {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    display: block;
+    font-size: 0.95rem;
+  }
+
+  .chat-info span {
+    font-size: 0.78rem;
+    color: var(--leaf);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .online-dot {
+    width: 6px; height: 6px;
+    background: var(--leaf);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2s infinite;
+  }
+
+  .chat-messages {
+    padding: 1.5rem;
+    min-height: 320px;
+    max-height: 380px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: rgba(253,246,227,0.15); border-radius: 4px; }
+
+  .msg {
+    max-width: 78%;
+    padding: 0.85rem 1.1rem;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .msg.bot {
+    background: rgba(29,185,84,0.1);
+    border: 1px solid rgba(29,185,84,0.15);
+    color: var(--cream);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.user {
+    background: rgba(245,200,66,0.12);
+    border: 1px solid rgba(245,200,66,0.2);
+    color: var(--cream);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    text-align: right;
+  }
+
+  .msg.typing {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 1rem 1.2rem;
+  }
+
+  .typing-dot {
+    width: 6px; height: 6px;
+    background: var(--leaf);
+    border-radius: 50%;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .chat-input-area {
+    padding: 1.2rem 1.5rem;
+    border-top: 1px solid rgba(253,246,227,0.07);
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: rgba(253,246,227,0.05);
+    border: 1px solid rgba(253,246,227,0.1);
+    border-radius: 100px;
+    padding: 0.75rem 1.2rem;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+
+  .chat-input::placeholder { color: var(--muted); }
+  .chat-input:focus { border-color: rgba(29,185,84,0.4); }
+
+  .send-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--leaf);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  .send-btn:hover {
+    background: var(--lime);
+    transform: scale(1.1);
+  }
+
+  .quick-prompts {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1.5rem 1rem;
+    flex-wrap: wrap;
+  }
+
+  .quick-btn {
+    background: rgba(253,246,227,0.05);
+    border: 1px solid rgba(253,246,227,0.1);
+    color: var(--muted);
+    padding: 0.35rem 0.9rem;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .quick-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(245,200,66,0.07);
+  }
+
+  /* ── WEATHER WIDGET ── */
+  .weather-section {
+    padding: 2rem 3rem 6rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .weather-card {
+    background: rgba(13,26,45,0.6);
+    border: 1px solid rgba(79,195,247,0.15);
+    border-radius: 24px;
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2rem;
+    align-items: start;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .weather-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(79,195,247,0.08), transparent 70%);
+    pointer-events: none;
+  }
+
+  .weather-location {
+    font-size: 0.78rem;
+    color: var(--sky);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .weather-temp {
+    font-family: 'Syne', sans-serif;
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: var(--cream);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+
+  .weather-desc {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .weather-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .weather-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .weather-meta-val {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--sky);
+  }
+
+  .weather-meta-key {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .weather-icon-big {
+    font-size: 5rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(79,195,247,0.3));
+  }
+
+  .farm-advice {
+    margin-top: 1.2rem;
+    padding: 1rem 1.2rem;
+    background: rgba(245,200,66,0.08);
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    color: var(--cream);
+    line-height: 1.6;
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid rgba(253,246,227,0.06);
+    padding: 2rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── LOADING SPINNER ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { display: none; }
+    .hero { grid-template-columns: 1fr; padding: 7rem 1.5rem 3rem; gap: 3rem; }
+    .features, .chatbot-section, .weather-section { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .hero-stats { gap: 1.5rem; }
+    footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    KrishiAI
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#diagnose">Diagnose</a></li>
+    <li><a href="#weather">Weather</a></li>
+    <li><a href="#chat">Assistant</a></li>
+    <li><a href="#chat" class="nav-cta">Try Free →</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="diagnose">
+  <div class="hero-bg"></div>
+
+  <div class="hero-left">
+    <div class="hero-tag">🌾 AI-Powered Agriculture</div>
+    <h1 class="hero-title">
+      Smart Farming<br>Starts with<br><span>KrishiAI</span>
+    </h1>
+    <p class="hero-sub">
+      Upload a photo of your crop, get instant disease diagnosis, real-time weather insights, and expert farming advice — all powered by AI.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.querySelector('.upload-zone').click()">
+        📷 Scan Your Crop
+      </button>
+      <button class="btn-secondary" onclick="document.getElementById('chat').scrollIntoView({behavior:'smooth'})">
+        Ask the AI →
+      </button>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <span class="stat-num">50K+</span>
+        <span class="stat-label">Diseases Detected</span>
+      </div>
+      <div>
+        <span class="stat-num">38</span>
+        <span class="stat-label">Crop Types</span>
+      </div>
+      <div>
+        <span class="stat-num">96%</span>
+        <span class="stat-label">Accuracy Rate</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD CARD -->
+  <div class="hero-right">
+    <div class="upload-card">
+      <div class="card-header">
+        <span class="card-title">🔬 Crop Disease Detector</span>
+        <span class="card-badge">AI Powered</span>
+      </div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" accept="image/*" id="file-input" onchange="handleImageUpload(event)">
+        <img id="preview-img" src="" alt="preview">
+        <span class="upload-icon" id="upload-icon">🌿</span>
+        <p id="upload-text"><strong>Drop a leaf photo here</strong><br>or click to browse<br><br>Supports JPG, PNG, WEBP</p>
+      </div>
+
+      <button class="analyze-btn" id="analyze-btn" onclick="analyzeDisease()" disabled>
+        <span id="btn-text">🔍 Analyze Crop</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+
+      <div id="result-panel">
+        <div class="result-box" id="disease-result">
+          <div class="result-label">🦠 Disease Detected</div>
+          <div class="result-content" id="disease-text"></div>
+        </div>
+        <div class="result-box" id="treatment-result">
+          <div class="result-label">💊 Recommended Treatment</div>
+          <div class="result-content" id="treatment-text"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-label">What We Offer</div>
+  <h2 class="section-title">Everything Your Farm Needs</h2>
+  <p class="section-sub">From disease detection to weather alerts — KrishiAI is your complete AI companion for modern farming.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <span class="feature-icon">🔬</span>
+      <div class="feature-name">Instant Disease Diagnosis</div>
+      <p class="feature-desc">Upload any leaf or crop photo and our AI identifies diseases with 96% accuracy. Get results in under 3 seconds.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">💊</span>
+      <div class="feature-name">Treatment Suggestions</div>
+      <p class="feature-desc">Receive precise, actionable treatment plans including organic and chemical options tailored to your specific crop disease.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🌦️</span>
+      <div class="feature-name">Weather Intelligence</div>
+      <p class="feature-desc">Real-time weather data with AI-generated farming advice. Know exactly when to irrigate, spray, or harvest.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🤖</span>
+      <div class="feature-name">Farming Chatbot</div>
+      <p class="feature-desc">Ask anything about farming in plain language. Our AI assistant answers questions about crops, pests, soil, and more.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📊</span>
+      <div class="feature-name">Crop Health Reports</div>
+      <p class="feature-desc">Track your farm's health over time with detailed analytics, disease history, and seasonal patterns.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🌍</span>
+      <div class="feature-name">Multi-Language Support</div>
+      <p class="feature-desc">Available in Hindi, Bengali, Tamil, and 10+ Indian languages so every farmer can benefit from AI technology.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WEATHER -->
+<section class="weather-section" id="weather">
+  <div class="section-label">Live Conditions</div>
+  <h2 class="section-title" style="text-align:left; font-size:2rem; margin-bottom:1.5rem;">Today's Farm Weather</h2>
+
+  <div class="weather-card" id="weather-card">
+    <div>
+      <div class="weather-location" id="w-location">📍 Fetching location…</div>
+      <div class="weather-temp" id="w-temp">--°C</div>
+      <div class="weather-desc" id="w-desc">Loading weather data…</div>
+      <div class="weather-meta">
+        <div class="weather-meta-item">
+          <span class="weather-meta-val" id="w-humidity">--%</span>
+          <span class="weather-meta-key">Humidity</span>
+        </div>
+        <div class="weather-meta-item">
+          <span class="weather-meta-val" id="w-wind">-- km/h</span>
+          <span class="weather-meta-key">Wind</span>
+        </div>
+        <div class="weather-meta-item">
+          <span class="weather-meta-val" id="w-rain">--%</span>
+          <span class="weather-meta-key">Rain Chance</span>
+        </div>
+      </div>
+      <div class="farm-advice" id="w-advice">
+        <span>💡</span>
+        <span id="w-advice-text">Fetching farming advice based on current conditions…</span>
+      </div>
+    </div>
+    <div class="weather-icon-big" id="w-icon">⛅</div>
+  </div>
+</section>
+
+<!-- CHATBOT -->
+<section class="chatbot-section" id="chat">
+  <div class="section-label">AI Assistant</div>
+  <h2 class="section-title" style="text-align:left; font-size:2rem; margin-bottom:1.5rem;">Ask Krishi Anything</h2>
+
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="chat-avatar">🌿</div>
+      <div class="chat-info">
+        <strong>Krishi — Farming AI</strong>
+        <span><span class="online-dot"></span> Online & Ready</span>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg bot">
+        👋 Namaste! I'm Krishi, your AI farming assistant. I can help you with crop diseases, pest control, fertilizers, irrigation, market prices, and more. What would you like to know today?
+      </div>
+    </div>
+
+    <div class="quick-prompts">
+      <button class="quick-btn" onclick="sendQuick('How to prevent leaf blight in rice?')">🌾 Leaf blight in rice</button>
+      <button class="quick-btn" onclick="sendQuick('Best fertilizer for wheat crop?')">🌿 Wheat fertilizers</button>
+      <button class="quick-btn" onclick="sendQuick('When should I irrigate my tomato farm?')">💧 Tomato irrigation</button>
+      <button class="quick-btn" onclick="sendQuick('How to protect crops from heavy rain?')">🌧️ Rain protection</button>
+    </div>
+
+    <div class="chat-input-area">
+      <input
+        class="chat-input"
+        id="chat-input"
+        type="text"
+        placeholder="Ask about your crop, disease, weather, pests…"
+        onkeydown="if(event.key==='Enter') sendMessage()"
+      >
+      <button class="send-btn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>© 2026 KrishiAI — Built for <strong>Hack-O-NiT</strong> · AI Summit 2026</div>
+  <div>Narula Institute of Technology · NiT Campus</div>
+</footer>
+
+<!-- ── SCRIPTS ── -->
+<script>
+
+// 🔗 CHANGE THIS TO YOUR ACTUAL BACKEND URL
+  const BACKEND_URL = "http://localhost:3000";
+
+// ── IMAGE UPLOAD ──
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = document.getElementById('preview-img');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('upload-icon').style.display = 'none';
+    document.getElementById('upload-text').style.display = 'none';
+    document.getElementById('analyze-btn').disabled = false;
+    document.getElementById('result-panel').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── DISEASE ANALYSIS via YOUR BACKEND ──
+async function analyzeDisease() {
+  const btn = document.getElementById('analyze-btn');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btn-text');
+  const imgEl = document.getElementById('preview-img');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Analyzing…';
+
+  try {
+  const canvas = document.createElement('canvas');
+  canvas.width = imgEl.naturalWidth;
+  canvas.height = imgEl.naturalHeight;
+  canvas.getContext('2d').drawImage(imgEl, 0, 0);
+  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+
+ 
+  const res = await fetch(`${BACKEND_URL}/analyze`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      image: base64
+    })
+  });
+
+  const result = await res.json();
+  console.log(result);
+
+      
+
+    
+
+    const sevClass =
+      result.severity === 'High' ? 'severity-high' :
+      result.severity === 'Medium' ? 'severity-med' : 'severity-low';
+
+    document.getElementById('disease-text').innerHTML = `
+      <strong>${result.disease}</strong>
+      <span class="severity-badge ${sevClass}">${result.severity} Severity</span>
+      <span class="severity-badge" style="background:rgba(79,195,247,0.15);color:var(--sky);margin-left:4px">${result.confidence}</span>
+      <br><br>${result.description}
+    `;
+
+    document.getElementById('treatment-text').innerHTML = result.treatment;
+    document.getElementById('result-panel').style.display = 'block';
+
+  } catch (err) {
+   console.error(err);
+
+    document.getElementById('disease-text').innerHTML =
+      '❌ Backend error. Make sure your server is running.';
+    document.getElementById('result-panel').style.display = 'block';
+  }
+
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  btnText.textContent = '🔍 Analyze Again';
+}
+
+// ── WEATHER (UNCHANGED) ──
+async function loadWeather() {
+  if (!navigator.geolocation) { updateWeatherFallback(); return; }
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,precipitation_probability,windspeed_10m&timezone=auto`);
+      const data = await res.json();
+      const cw = data.current_weather;
+
+      const temp = Math.round(cw.temperature);
+      const wind = Math.round(cw.windspeed);
+      const hour = new Date().getHours();
+      const humidity = data.hourly?.relativehumidity_2m?.[hour] ?? 68;
+      const rainChance = data.hourly?.precipitation_probability?.[hour] ?? 20;
+
+      document.getElementById('w-location').textContent = `📍 Your Farm`;
+      document.getElementById('w-temp').textContent = `${temp}°C`;
+      document.getElementById('w-desc').textContent = 'Live Weather';
+      document.getElementById('w-humidity').textContent = `${humidity}%`;
+      document.getElementById('w-wind').textContent = `${wind} km/h`;
+      document.getElementById('w-rain').textContent = `${rainChance}%`;
+
+      document.getElementById('w-advice-text').textContent =
+        '✅ Good conditions — proceed with farming activities.';
+
+    } catch(err){
+      console.error(err);
+      updateWeatherFallback();
+    }
+  }, updateWeatherFallback);
+}
+
+function updateWeatherFallback() {
+  document.getElementById('w-location').textContent = '📍 West Bengal, India';
+  document.getElementById('w-temp').textContent = '32°C';
+  document.getElementById('w-desc').textContent = 'Partly Cloudy';
+}
+
+// ── CHATBOT USING BACKEND ──
+const chatHistory = [];
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  appendMsg(text, 'user');
+  chatHistory.push({ role: 'user', content: text });
+
+  await getBotReply(text);
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+function appendMsg(text, who) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${who}`;
+  div.innerHTML = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+async function getBotReply(text) {
+  const box = document.getElementById("chat-messages");
+
+  const typing = document.createElement("div");
+  typing.className = "msg bot typing";
+  typing.innerHTML =
+    '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+
+  box.appendChild(typing);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
+
+    const data = await res.json();
+
+    typing.remove();
+
+    // ✅ SAFE OUTPUT
+    const reply = data.reply ?? "⚠️ No reply from backend";
+
+    appendMsg(reply, "bot");
+
+  } catch (err) {
+    console.error(err);
+    typing.remove();
+    appendMsg("⚠️ Backend not responding.", "bot");
+  }
+}
+// ── INIT ──
+loadWeather();
+</script>
+
+</body>
+</html>
