@@ -17,6 +17,7 @@ const path    = require('path');
 const analyzeRoute = require('./routes/analyze');
 const weatherRoute = require('./routes/weather');
 const chatRoute    = require('./routes/chat');
+const transcribeRoute = require('./routes/transcribe');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,9 @@ app.use('/', weatherRoute);
 // AI Chatbot — POST /chat
 app.use('/chat', chatRoute);
 
+// Voice-to-text — POST /transcribe (Groq Whisper)
+app.use('/transcribe', transcribeRoute);
+
 
 // ── FRONTEND ───────────────────────────────────
 // Serve the actual KrishiAI site (index.html) at the root
@@ -61,5 +65,6 @@ app.listen(PORT, () => {
   console.log(`  POST http://localhost:${PORT}/analyze  — Crop disease detection`);
   console.log(`  GET  http://localhost:${PORT}/weather  — Weather + farming advice`);
   console.log(`  POST http://localhost:${PORT}/chat     — AI farming chatbot`);
+  console.log(`  POST http://localhost:${PORT}/transcribe — Voice-to-text (Groq Whisper)`);
   console.log('');
 });

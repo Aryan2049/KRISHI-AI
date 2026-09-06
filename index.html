@@ -1271,6 +1271,25 @@ function setLanguage(code) {
   if (recognition) recognition.lang = code;
 }
 
+let langFallbackUsed = false;
+let useGroqVoice = false; // true once the browser speech service proves unreachable
+let mediaRecorder = null;
+let mediaStream = null;
+let audioChunks = [];
+let autoStopTimer = null;
+
+function voiceHint(message) {
+  const box = document.getElementById('chat-messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.style.opacity = '0.85';
+  div.style.fontSize = '0.82rem';
+  div.innerHTML = message;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
 function initVoice() {
   const micBtn = document.getElementById('mic-btn');
   const langSel = document.getElementById('lang-select');
@@ -1281,7 +1300,14 @@ function initVoice() {
   if (!SpeechRecognitionAPI) {
     micBtn.style.display = 'none';
     if (langSel) langSel.disabled = true;
+    voiceHint('🎤 Voice typing isn\'t supported in this browser. Try Chrome, Edge, or Safari — or just type your question below.');
     return;
+  }
+
+  // Not supported on insecure origins or inside embedded frames that
+  // don't grant microphone access.
+  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+    voiceHint('🎤 Voice typing needs a secure (https) connection. Open the app in a new tab and try again.');
   }
 
   recognition = new SpeechRecognitionAPI();
@@ -1301,12 +1327,56 @@ function initVoice() {
   recognition.onerror = (err) => {
     console.error('Voice error:', err.error);
     setRecording(false);
+    handleVoiceError(err.error);
   };
 
   micBtn.onclick = toggleVoice;
 }
 
+function handleVoiceError(code) {
+  if (code === 'aborted') return; // user stopped — normal
+
+  if (code === 'no-speech') {
+    voiceHint('🤔 I didn\'t hear anything. Tap the mic and speak again — or type your question.');
+    return;
+  }
+
+  if (code === 'language-not-supported' && !langFallbackUsed) {
+    langFallbackUsed = true;
+    selectedLang = 'en-IN';
+    setLanguage('en-IN');
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.value = 'en-IN';
+    voiceHint('🗣️ Your selected language isn\'t supported by this browser\'s speech engine — switched to English. You can still type in any language.');
+    return;
+  }
+
+  if (code === 'not-allowed' || code === 'service-not-allowed') {
+    voiceHint('🎤 Microphone blocked. Click the 🔒/camera icon in the browser address bar → allow <strong>Microphone</strong> for this site, then tap the mic again.<br><small>Tip: if the app is embedded in a preview panel, open it in its own browser tab first — embedded pages often can\'t use the mic.</small>');
+    return;
+  }
+
+  if (code === 'network') {
+    if (!useGroqVoice) {
+      useGroqVoice = true;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) micBtn.title = 'Tap to speak (Krishi voice)';
+      voiceHint('📡 Your browser\'s voice service is unreachable here — no problem! Switching to <strong>Krishi\'s own voice service</strong>. Tap the mic again and speak.');
+      return;
+    }
+    voiceHint('📡 Voice service unreachable — check your internet and tap the mic again.');
+    return;
+  }
+
+  voiceHint('🎤 Voice typing hit a snag (' + code + '). Tap the mic to retry, or just type below.');
+}
+
 function toggleVoice() {
+  // Groq-Whisper mode: record in the browser, transcribe on the backend
+  if (useGroqVoice) {
+    if (isRecording) { stopRecorder(); } else { startRecorder(); }
+    return;
+  }
   if (!recognition) return;
   if (isRecording) { recognition.stop(); return; }
   try {
@@ -1316,7 +1386,78 @@ function toggleVoice() {
   } catch (err) {
     console.error(err);
     setRecording(false);
+    handleVoiceError(err && err.error ? err.error : 'start-failed');
   }
+}
+
+// ── Groq-Whisper voice fallback (MediaRecorder) ──
+async function startRecorder() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStream = stream;
+    audioChunks = [];
+
+    const mime = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm'))
+      ? 'audio/webm'
+      : undefined;
+    mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = sendAudioToKrishi;
+    mediaRecorder.start();
+    setRecording(true);
+
+    // Auto-stop after 25 seconds so the upload stays small
+    autoStopTimer = setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+    }, 25000);
+  } catch (err) {
+    console.error('Recorder error:', err);
+    handleVoiceError(err && err.name === 'NotAllowedError' ? 'not-allowed' : 'mic-unavailable');
+  }
+}
+
+function stopRecorder() {
+  if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (mediaStream) { mediaStream.getTracks().forEach((t) => t.stop()); mediaStream = null; }
+}
+
+async function sendAudioToKrishi() {
+  setRecording(false);
+  const type = (mediaRecorder && mediaRecorder.mimeType) ? mediaRecorder.mimeType : 'audio/webm';
+  const blob = new Blob(audioChunks, { type });
+  audioChunks = [];
+  mediaRecorder = null;
+
+  if (blob.size < 1000) {
+    voiceHint('🤔 That was too short to hear anything — tap the mic and speak a bit longer.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = String(reader.result).split(',')[1];
+    try {
+      const res = await fetch(`${BACKEND_URL}/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64, language: selectedLang })
+      });
+      const data = await res.json();
+      const text = (data.text || '').trim();
+      if (!text) {
+        voiceHint('🤔 I couldn\'t hear clearly — tap the mic and try again.');
+        return;
+      }
+      const input = document.getElementById('chat-input');
+      input.value = text;
+      sendMessage();
+    } catch (err) {
+      console.error(err);
+      voiceHint('📡 Couldn\'t reach Krishi\'s voice service — check your connection and tap the mic again.');
+    }
+  };
+  reader.readAsDataURL(blob);
 }
 
 function setRecording(on) {
